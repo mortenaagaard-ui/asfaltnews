@@ -1,1 +1,3 @@
 # asfaltnews
+
+Test af Configurator
