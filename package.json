@@ -1,0 +1,10 @@
+{
+  "name": "asfaltnews",
+  "version": "1.0.0",
+  "description": "Statisk site med Vercel Functions",
+  "main": "api/update-github-file.js",
+  "scripts": {},
+  "dependencies": {
+    "axios": "^1.6.2"
+  }
+}
