@@ -456,7 +456,7 @@ function applyStateToUI() {
     
     document.getElementById('plantehuller-val').innerText = State.plantehuller.count;
     document.getElementById('plantehuller-slider').value = State.plantehuller.count;
-    document.querySelector(`input[name="skin"][value="${State.skin}"]`).checked = true;
+  //  document.querySelector(`input[name="skin"][value="${State.skin}"]`).checked = true;
     document.getElementById('skin-stylesheet').href = State.skin;
 }
 
