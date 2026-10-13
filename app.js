@@ -108,6 +108,8 @@ function ensurePathElement(groupEl) {
 function renderAll() {
 
     // Opsætning af svg_1
+    console.log("RenderAll() called. Current State:", JSON.stringify(State, null, 2));
+
     const svg1 = document.getElementById('svg_1');
     if (svg1) {
         svg1.setAttribute('x', '0');
