@@ -109,6 +109,11 @@
                     <!-- Master transform gruppe: Bruges af JavaScript til at håndtere Zoom ind/ud og Panorering -->
                     <g id="master-transform">
 
+                        <!-- Lag 1: Gaden (Det ydre polygon) -->
+                        <!-- Bliver asynkront injiceret og styret med gx, gy, gsk -->
+                        <g id="layer-gaden"></g>
+
+
                         <!-- Lag 0: Baggrundsbilledet (Placeret nederst i z-indeks stakken) -->
                         <!-- preserveAspectRatio="none" sikrer, at billedet altid strækkes til de nøjagtige 4000x1763 -->
                         <g id="layer-vejen">
@@ -118,9 +123,7 @@
                         <!-- Hovedlaget for konfiguratoren: Indlejret svg_1 med egne dimensioner -->
                         <svg id="svg_1" x="0" y="0" width="4000" height="1763" viewBox="0 0 4000 1763">
 
-                            <!-- Lag 1: Gaden (Det ydre polygon) -->
-                            <!-- Bliver asynkront injiceret og styret med gx, gy, gsk -->
-                            <g id="layer-gaden"></g>
+
 
                             <!-- Lag 2: Kørevejen (Geometrisk skabelon) -->
                             <!-- Bliver asynkront injiceret og styret med sx, sy, ssk -->
