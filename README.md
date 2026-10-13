@@ -1,3 +1,3 @@
 # asfaltnews
 
-Test af Configurator23ad
+Test af Configurator23ade
