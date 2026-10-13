@@ -1,12 +1,11 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-  // 1. Håndter CORS (vigtigt hvis du fetcher fra frontend)
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // CORS-headers
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Kan begrænses til dit domæne senere
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Håndter preflight-requests i browseren
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -16,15 +15,22 @@ module.exports = async (req, res) => {
   }
 
   const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-  const REPO_OWNER = process.env.REPO_OWNER || 'mortenaagaard-ui';
-  const REPO_NAME = process.env.REPO_NAME || 'asfaltnews';
+  const REPO_OWNER = process.env.REPO_OWNER;
+  const REPO_NAME = process.env.REPO_NAME;
   const FILE_PATH = 'data/data.json';
 
   try {
-    const { content } = req.body;
-    let sha;
+    // 1. Modtag det nye dataobjekt fra frontend
+    const { newData } = req.body;
 
-    // 2. Prøv at hente filen for at få SHA (hvis den findes)
+    if (!newData) {
+      return res.status(400).json({ error: 'Mangler newData i request body' });
+    }
+
+    let sha;
+    let eksisterendeData = [];
+
+    // 2. Hent den eksisterende fil fra GitHub
     try {
       const getResponse = await axios.get(
         `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,
@@ -35,27 +41,46 @@ module.exports = async (req, res) => {
           }
         }
       );
+      
       sha = getResponse.data.sha;
+      
+      // GitHub returnerer filen som Base64. Vi afkoder den til en tekststreng (UTF-8).
+      const decodedContent = Buffer.from(getResponse.data.content, 'base64').toString('utf-8');
+      
+      // Parse teksten til et JavaScript array
+      if (decodedContent) {
+         eksisterendeData = JSON.parse(decodedContent);
+         
+         // Sikkerhedstjek: Hvis filen ikke er et array (f.eks. et objekt), laver vi det til et array
+         if (!Array.isArray(eksisterendeData)) {
+             eksisterendeData = [eksisterendeData]; 
+         }
+      }
     } catch (getError) {
       if (getError.response?.status === 404) {
-        // Filen findes ikke endnu, hvilket er okay. 'sha' forbliver undefined.
+        // Hvis filen ikke findes, fortsætter vi blot med det tomme array: []
       } else {
-        throw getError; // Kast andre fejl (f.eks. ugyldigt token) videre
+        throw getError;
       }
     }
 
-    // 3. Opsæt payload. 
+    // 3. Push det nye element ind i bunden af arrayet
+    eksisterendeData.push(newData);
+
+    // 4. Konverter hele det opdaterede array tilbage til en formateret JSON-streng og derefter til Base64
+    const opdateretContentStr = JSON.stringify(eksisterendeData, null, 2);
+    const base64Content = Buffer.from(opdateretContentStr, 'utf-8').toString('base64');
+
+    // 5. Send den opdaterede fil tilbage til GitHub via PUT
     const payload = {
-      message: sha ? 'Opdater data.json via Vercel' : 'Opret data.json via Vercel',
-      content: Buffer.from(content).toString('base64')
+      message: 'Tilføjer nyt element til data.json via Vercel',
+      content: base64Content
     };
 
-    // Tilføj sha, hvis vi fandt en (påkrævet for at opdatere eksisterende filer)
     if (sha) {
-      payload.sha = sha;
+      payload.sha = sha; // Påkrævet for at overskrive den eksisterende fil
     }
 
-    // 4. Send PUT-anmodning (GitHub bruger altid PUT til både oprettelse og opdatering)
     await axios.put(
       `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,
       payload,
@@ -67,7 +92,7 @@ module.exports = async (req, res) => {
       }
     );
 
-    return res.status(200).json({ success: true, message: 'Filen er gemt i GitHub.' });
+    return res.status(200).json({ success: true, message: 'Data blev pushet til arkivet.' });
 
   } catch (error) {
     console.error('Fejl:', error.message);
