@@ -1,0 +1,8 @@
+:root {
+    --bg-color: #eceff1;
+    --panel-bg: #cfd8dc;
+    --text-color: #37474f;
+    --accent-color: #607d8b;
+    --border-color: #90a4ae;
+    --texture-url: url('img/concrete.png');
+}

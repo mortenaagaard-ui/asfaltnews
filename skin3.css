@@ -1,0 +1,8 @@
+:root {
+    --bg-color: #e8f5e9;
+    --panel-bg: #ffffff;
+    --text-color: #2e7d32;
+    --accent-color: #4caf50;
+    --border-color: #c8e6c9;
+    --texture-url: url('img/leaf-texture.png');
+}
