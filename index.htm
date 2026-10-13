@@ -93,23 +93,44 @@
                 <button id="zoom-out">-</button>
             </div>
             
-            <svg id="gh-canvas" viewBox="0 0 4000 1763" xmlns="http://www.w3.org/2000/svg">
+            <svg id="gh-canvas" viewBox="0 0 4000 1763" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+
+                <!-- Master transform gruppe: Bruges af JavaScript til at håndtere Zoom ind/ud og Panorering -->
                 <g id="master-transform">
-                    <!-- Lag 0: Vejen (Billede) -->
+
+                    <!-- Lag 0: Baggrundsbilledet (Placeret nederst i z-indeks stakken) -->
+                    <!-- preserveAspectRatio="none" sikrer, at billedet altid strækkes til de nøjagtige 4000x1763 -->
                     <g id="layer-vejen">
-                        <image href="img/vejen.svg" x="0" y="0" width="4000" height="1763" />
+                        <image href="img/vejen.svg" x="0" y="0" width="4000" height="1763" preserveAspectRatio="none"></image>
                     </g>
-                    <!-- Lag 1: Gaden -->
-                    <g id="layer-gaden"></g>
-                    <!-- Lag 3: Kørevejen (Rettet Z-index i hht prompt: Gade -> Vej -> Torvet) -->
-                    <g id="layer-koerevejen"></g>
-                    <!-- Lag 2: Torvet -->
-                    <g id="layer-torvet"></g>
-                    <!-- Lag 4: Bump -->
-                    <g id="layer-bump"></g>
-                    <!-- Lag 5: Plantehuller -->
-                    <g id="layer-plantehuller"></g>
+
+                    <!-- Hovedlaget for konfiguratoren: Indlejret svg_1 med egne dimensioner -->
+                    <svg id="svg_1" x="0" y="0" width="4000" height="1763" viewBox="0 0 4000 1763">
+
+                        <!-- Lag 1: Gaden (Det ydre polygon) -->
+                        <!-- Bliver asynkront injiceret og styret med gx, gy, gsk -->
+                        <g id="layer-gaden"></g>
+
+                        <!-- Lag 2: Kørevejen (Geometrisk skabelon) -->
+                        <!-- Bliver asynkront injiceret og styret med sx, sy, ssk -->
+                        <g id="layer-koerevejen"></g>
+
+                        <!-- Lag 3: Torvet (Defineret delområde af gaden) -->
+                        <!-- Bliver asynkront injiceret og styret med tx, ty, tsk -->
+                        <g id="layer-torvet"></g>
+
+                        <!-- Lag 4: Bump (Hastighedsdæmpere) -->
+                        <!-- Udfyldes dynamisk med <circle> eller <rect> elementer via JavaScript -->
+                        <g id="layer-bump"></g>
+
+                        <!-- Lag 5: Plantehuller (Ligger øverst, da de placeres langs Gadens periferi) -->
+                        <!-- Udfyldes dynamisk med roterede <path> halvcirkler via JavaScript -->
+                        <g id="layer-plantehuller"></g>
+
+                    </svg>
+
                 </g>
+
             </svg>
         </main>
     </div>

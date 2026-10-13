@@ -106,6 +106,27 @@ function ensurePathElement(groupEl) {
 
 // 3. RENDERING MOTOR (Opdaterer DOM baseret på State)
 function renderAll() {
+
+    // Opsætning af svg_1
+    const svg1 = document.getElementById('svg_1');
+    if (svg1) {
+        svg1.setAttribute('x', '0');
+        svg1.setAttribute('y', '0');
+        svg1.setAttribute('width', '4000');
+        svg1.setAttribute('height', '1763');
+    }
+
+    // Opsætning af image
+    const imageLayer = document.querySelector('image[href="img/vejen.svg"]');
+    if (imageLayer) {
+        imageLayer.setAttribute('x', '0');
+        imageLayer.setAttribute('y', '0');
+        imageLayer.setAttribute('width', '4000');
+        imageLayer.setAttribute('height', '1763');
+        imageLayer.setAttribute('preserveAspectRatio', 'none');
+    }
+
+
     // 0. Vejen
     document.getElementById('layer-vejen').style.display = State.vejen.visible ? 'block' : 'none';
     
