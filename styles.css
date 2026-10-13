@@ -54,4 +54,62 @@ button:hover { background: #d0d0d0; }
 /* SVG Interactivity Classes */
 .draggable { cursor: pointer; }
 .draggable:hover { filter: drop-shadow(0px 0px 5px rgba(0,0,0,0.5)); }
-.selected-element { stroke: var(--accent-color) !important; stroke-width: 4px !important; stroke-dasharray: 5,5; }
+
+.selected-element 
+{ stroke: var(--accent-color) !important; stroke-width: 4px !important; stroke-dasharray: 5,5; }
+
+/* Nulstil margin for at undgå uventet scroll */
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Forhindrer scroll på hele siden */
+}
+
+/* 1. Hovedcontaineren etablerer Flexbox-konteksten */
+.app-container {
+    display: flex;
+    flex-direction: row; /* Sikrer at elementerne ligger horisontalt */
+    width: 100vw;
+    height: 100vh;
+}
+
+/* 2. Toolboxen (Venstre kolonne) */
+.control-panel {
+    /* flex: grow shrink basis */
+    flex: 0 0 380px;
+    /* 
+       flex: 0 0 380px betyder:
+       - Voks ikke (0)
+       - Krymp ikke (0)
+       - Start med præcis 380px i bredden (380px)
+    */
+
+    height: 100%;
+    background-color: #ffffff;
+    border-right: 1px solid #ccc;
+    /* Tillad vertikal scroll KUN inde i toolboxen, hvis indholdet er for langt */
+    overflow-y: auto;
+    /* VIGTIGT: Fjern evt. position: absolute eller position: fixed herfra */
+}
+
+/* 3. Canvas Containeren (Højre kolonne) */
+.canvas-panel {
+    /* flex: 1 betyder, at denne boks skal optage AL resterende plads */
+    flex: 1;
+    height: 100%;
+    position: relative; /* Holder SVG'en kontekstuelt på plads */
+    /* Centrerer selve SVG-elementet i den ledige plads */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f0f0f0;
+}
+
+/* Selve SVG-elementet */
+#gh-canvas {
+    width: 100%;
+    max-width: 1000px; /* Forhindrer at det bliver uendeligt stort */
+    height: auto;
+}
