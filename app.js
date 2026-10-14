@@ -14,7 +14,7 @@ const State = {
     gaden: { visible: true, fill: '#eef0ef' },
     torvet: { visible: true, fill: '#ffffff' },
     koerevejen: { 
-        template: 'gaden.svg', 
+        template: 'koerevejen_lige_linie.svg', 
         fill: '#ebe6e8', 
         strokeColor: '#000000', 
         strokeWidth: 0, 
@@ -54,22 +54,25 @@ async function fetchSVGContent(url) {
     }
 }
 
+// 2. Opdater fetch-funktionerne til at benytte korrektionen af origo
 async function fetchAndRenderStaticLayers() {
     // Gaden
     const gadenContent = await fetchSVGContent('gaden.svg');
-    if(gadenContent) {
+    if (gadenContent) {
         const gLayer = document.getElementById('layer-gaden');
         gLayer.innerHTML = gadenContent;
-        gLayer.setAttribute('transform', `translate(${gx}, ${gy}) scale(${gsk})`);
-        ensurePathElement(gLayer); // Gør klar til matematisk path-tracing
+        ensurePathElement(gLayer);
+        // Nulstiller negativt origo for gaden
+        applyOriginFixAndTransform(gLayer, gx, gy, gsk);
     }
 
     // Torvet
     const torvetContent = await fetchSVGContent('torvet.svg');
-    if(torvetContent) {
+    if (torvetContent) {
         const tLayer = document.getElementById('layer-torvet');
         tLayer.innerHTML = torvetContent;
-        tLayer.setAttribute('transform', `translate(${tx}, ${ty}) scale(${tsk})`);
+        // Nulstiller negativt origo for torvet
+        applyOriginFixAndTransform(tLayer, tx, ty, tsk);
     }
 
     // Kørevejen (Standard skabelon)
@@ -77,16 +80,16 @@ async function fetchAndRenderStaticLayers() {
 }
 
 async function loadKoerevejTemplate() {
-    console.log("loadKoerevejTemplate", State.koerevejen.template)
+    console.log("loadKoerevejTemplate", State.koerevejen.template);
     const content = await fetchSVGContent(State.koerevejen.template);
-    if(content) {
+    if (content) {
         const sLayer = document.getElementById('layer-koerevejen');
         sLayer.innerHTML = content;
-        sLayer.setAttribute('transform', `translate(${sx}, ${sy}) scale(${ssk})`);
+        // Nulstiller negativt origo for kørevejen
+        applyOriginFixAndTransform(sLayer, sx, sy, ssk);
         renderKoerevejenStyles();
     }
 }
-
 // Hjælpefunktion: Konverterer polygoner til <path>, da getTotalLength() er påkrævet til plantehuller
 function ensurePathElement(groupEl) {
     const polygons = groupEl.querySelectorAll('polygon');
@@ -105,10 +108,21 @@ function ensurePathElement(groupEl) {
 }
 
 
-// 3. RENDERING MOTOR (Opdaterer DOM baseret på State)
-function renderAll() {
+// 1. Tilføj denne hjælpefunktion under 'ensurePathElement'
+function applyOriginFixAndTransform(layerElement, xPos, yPos, scale) {
+    // Beregn grafikkens faktiske afgrænsning og det indbyggede offset
+    const bbox = layerElement.getBBox();
 
-    // Opsætning af svg_1
+    // Modregn det negative origo for at placere grafikken præcist ved xPos og yPos
+    const adjustX = xPos - (bbox.x * scale);
+    const adjustY = yPos - (bbox.y * scale);
+
+    layerElement.setAttribute('transform', `translate(${adjustX}, ${adjustY}) scale(${scale})`);
+}
+
+
+// 3. Opdater renderAll() til at bruge 100% skalering af baggrundsbilledet
+function renderAll() {
     console.log("RenderAll() called. Current State:", JSON.stringify(State, null, 2));
 
     const svg1 = document.getElementById('svg_1');
@@ -119,25 +133,23 @@ function renderAll() {
         svg1.setAttribute('height', '1763');
     }
 
-    // Opsætning af image
+    // Opsætning af image (fejl 1 rettet her via % i stedet for faste pixelværdier)
     const imageLayer = document.querySelector('image[href="img/vejen.svg"]');
     if (imageLayer) {
         imageLayer.setAttribute('x', '0');
         imageLayer.setAttribute('y', '0');
-        imageLayer.setAttribute('width', '4000');
-        imageLayer.setAttribute('height', '1763');
+        imageLayer.setAttribute('width', '100%');
+        imageLayer.setAttribute('height', '100%');
         imageLayer.setAttribute('preserveAspectRatio', 'none');
     }
 
-
     // 0. Vejen
     document.getElementById('layer-vejen').style.display = State.vejen.visible ? 'block' : 'none';
-    
+
     // 1. Gaden
     const gLayer = document.getElementById('layer-gaden');
     gLayer.style.display = State.gaden.visible ? 'block' : 'none';
     Array.from(gLayer.children).forEach(child => {
-        // Hvid-sort palette simuleres ved at tillade css-color assignment
         child.setAttribute('fill', State.gaden.fill);
     });
 
@@ -146,8 +158,7 @@ function renderAll() {
     tLayer.style.display = State.torvet.visible ? 'block' : 'none';
     Array.from(tLayer.children).forEach(child => {
         child.setAttribute('fill', State.torvet.fill);
-        // Torvets specifikke edge-marker constraint
-        child.setAttribute('stroke', '#000'); 
+        child.setAttribute('stroke', '#000');
         child.setAttribute('stroke-width', '2');
     });
 

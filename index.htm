@@ -101,7 +101,7 @@
                 <ul id="archive-list"></ul>
             </div>
         </aside>
-       
+
 
         <!-- Højre kolonne: Canvas -->
         <main class="canvas-panel" style="flex-grow: 1; position: relative; overflow: hidden;">
@@ -147,3 +147,14 @@
     <script src="app.js"></script>
 </body>
 </html>
+
+
+
+
+<!--id="layer-vejen": I dette lag indsættes billedfilen img/vejen.svg direkte via HTML-koden.   
+id="layer-gaden": Filen img/gaden.svg hentes asynkront via JavaScript-funktionen fetchSVGContent og indsættes i dette lag.   
+id="layer-koerevejen": Her indsættes en valgt SVG-skabelonfil. 
+Standardfilen ved opstart er img/koerevejen_lige_linie.svg. 
+Via brugergrænsefladen kan dette dog ændres til filerne img/skabelon1.svg,
+ img/skabelon2.svg eller img/skabelon3.svg
+    -->.   
