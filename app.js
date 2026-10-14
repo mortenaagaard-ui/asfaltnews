@@ -14,7 +14,7 @@ const State = {
     gaden: { visible: true, fill: '#eef0ef' },
     torvet: { visible: true, fill: '#ffffff' },
     koerevejen: { 
-        template: 'skabelon1.svg', 
+        template: 'gaden.svg', 
         fill: '#ebe6e8', 
         strokeColor: '#000000', 
         strokeWidth: 0, 
