@@ -77,6 +77,7 @@ async function fetchAndRenderStaticLayers() {
 }
 
 async function loadKoerevejTemplate() {
+    console.log("loadKoerevejTemplate", State.koerevejen.template)
     const content = await fetchSVGContent(State.koerevejen.template);
     if(content) {
         const sLayer = document.getElementById('layer-koerevejen');
