@@ -55,6 +55,7 @@ async function fetchSVGContent(url) {
 }
 
 // 2. Opdater fetch-funktionerne til at benytte korrektionen af origo
+// 2. Opdater fetch-funktionerne til at benytte korrektionen af origo
 async function fetchAndRenderStaticLayers() {
     // Gaden
     const gadenContent = await fetchSVGContent('gaden.svg');
@@ -90,6 +91,7 @@ async function loadKoerevejTemplate() {
         renderKoerevejenStyles();
     }
 }
+
 // Hjælpefunktion: Konverterer polygoner til <path>, da getTotalLength() er påkrævet til plantehuller
 function ensurePathElement(groupEl) {
     const polygons = groupEl.querySelectorAll('polygon');
@@ -105,6 +107,18 @@ function ensurePathElement(groupEl) {
         path.setAttribute('class', poly.getAttribute('class') || '');
         poly.replaceWith(path);
     });
+}
+
+// 1. Tilføj denne hjælpefunktion under 'ensurePathElement'
+function applyOriginFixAndTransform(layerElement, xPos, yPos, scale) {
+    // Beregn grafikkens faktiske afgrænsning og det indbyggede offset
+    const bbox = layerElement.getBBox();
+
+    // Modregn det negative origo for at placere grafikken præcist ved xPos og yPos
+    const adjustX = xPos - (bbox.x * scale);
+    const adjustY = yPos - (bbox.y * scale);
+
+    layerElement.setAttribute('transform', `translate(${adjustX}, ${adjustY}) scale(${scale})`);
 }
 
 
@@ -170,7 +184,6 @@ function renderAll() {
     renderPlantehullerVisually();
     updateZoomPan();
 }
-
 function renderKoerevejenStyles() {
     const sLayer = document.getElementById('layer-koerevejen');
     Array.from(sLayer.children).forEach(child => {
