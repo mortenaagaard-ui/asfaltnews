@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GH-PC: 2D Product Configurator</title>
+    <link rel="stylesheet" href="styles.css">
+    <link id="skin-stylesheet" rel="stylesheet" href="skin1.css">
+</head>
+<body>
+    <!-- Topvenstre Logo placeres absolut, ude af grid-strukturen -->
+    <div id="gh-logo-container">
+        <img src="img/gh.png" id="gh-logo" alt="GH Logo">
+        <div id="gh-logo-tooltip">Dette er GH Product Configurator (xxxx)</div>
+    </div>
+
+    <!-- Et rent to-kolonne Flexbox layout -->
+    <div class="app-container" style="display: flex; height: 100vh; width: 100vw; overflow: hidden;">
+
+        <!-- Venstre kolonne: Toolbox -->
+        <aside class="toolbox" id="toolbox" style="width: 350px; flex-shrink: 0; overflow-y: auto;">
+            <h2>Værktøjskasse</h2>
+
+            <div class="control-group">
+                <h3>1. Visninger & Lag</h3>
+                <label><input type="checkbox" id="toggle-vejen" checked> Vis Vejen (Baggrund .png)</label>
+                <label><input type="checkbox" id="toggle-gaden" checked> Vis Gaden</label>
+                <label>Gaden Farve (Gråtoner): <input type="color" id="gaden-color" value="#eef0ef"></label>
+                <label><input type="checkbox" id="toggle-torvet" checked> Vis Torvet</label>
+                <label>Torvet Farve: <input type="color" id="torvet-color" value="#ffffff"></label>
+            </div>
+
+            <h2>Værktøjskasse</h2>
+
+            <div class="control-group">
+                <h3>1. Visninger & Lag</h3>
+                <label><input type="checkbox" id="toggle-vejen" checked> Vis Vejen (Baggrund .png)</label>
+                <label><input type="checkbox" id="toggle-gaden" checked> Vis Gaden</label>
+                <label>Gaden Farve (Gråtoner): <input type="color" id="gaden-color" value="#eef0ef"></label>
+                <label><input type="checkbox" id="toggle-torvet" checked> Vis Torvet</label>
+                <label>Torvet Farve: <input type="color" id="torvet-color" value="#ffffff"></label>
+            </div>
+
+            <div class="control-group">
+                <h3>2. Kørevejen (Skabelon)</h3>
+                <label>
+                    Vælg forløb:
+                    <select id="koerevejen-template">
+                        <option value="skabelon1.svg">Lige forløb</option>
+                        <option value="skabelon2.svg">Kurvet forløb</option>
+                        <option value="skabelon3.svg">Forgrenet forløb</option>
+                    </select>
+                </label>
+                <label>Fyldfarve: <input type="color" id="koerevejen-fill" value="#ebe6e8"></label>
+                <label>Kantfarve: <input type="color" id="koerevejen-stroke-color" value="#000000"></label>
+                <label>Kantbredde (0-5): <input type="range" id="koerevejen-stroke-width" min="0" max="5" value="0"></label>
+                <label>
+                    Kantstil:
+                    <select id="koerevejen-stroke-style">
+                        <option value="solid">Solid</option>
+                        <option value="dashed">Stiplet</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="control-group">
+                <h3>3. Plantehuller</h3>
+                <label>
+                    Antal (0-40): <span id="plantehuller-val">0</span>
+                    <input type="range" id="plantehuller-slider" min="0" max="40" step="10" value="0">
+                </label>
+                <small>Tip: Genererede huller kan slettes (Dobbeltklik) eller trækkes frit.</small>
+            </div>
+
+            <div class="control-group">
+                <h3>4. Bump (Hastighedsdæmpere)</h3>
+                <button id="add-bump-circle">Tilføj Rundt Bump</button>
+                <button id="add-bump-rect">Tilføj Rektangulært Bump</button>
+                <div id="bump-editor" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #ccc;">
+                    <strong>Rediger valgt Bump:</strong>
+                    <label>Størrelse: <input type="range" id="bump-size" min="10" max="200" value="50"></label>
+                    <label>Farve: <input type="color" id="bump-color" value="#ff0000"></label>
+                    <button id="delete-bump">Slet Bump</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>5. Tema (Skins)</h3>
+                <label><input type="radio" name="skin" value="skin1.css" checked> Skin 1 (Standard)</label>
+                <label><input type="radio" name="skin" value="skin2.css"> Skin 2 (Mørk)</label>
+                <label><input type="radio" name="skin" value="skin3.css"> Skin 3 (Natur)</label>
+                <label><input type="radio" name="skin" value="skin4.css"> Skin 4 (Urban)</label>
+            </div>
+
+            <div class="control-group">
+                <h3>6. Arkiv & Publicering</h3>
+                <input type="text" id="pub-name" placeholder="Designets navn" required>
+                <textarea id="pub-motivation" placeholder="Begrundelse for designet..." rows="3"></textarea>
+                <button id="btn-publish" class="primary-btn">Gem & Publicer</button>
+                <button id="btn-load-list">Hent gemte design</button>
+                <ul id="archive-list"></ul>
+            </div>
+        </aside>
+
+
+        <!-- Højre kolonne: Canvas -->
+        <main class="canvas-panel" style="flex-grow: 1; position: relative; overflow: hidden;">
+
+            <div class="zoom-controls">
+                <button id="zoom-in">+</button>
+                <button id="zoom-out">-</button>
+            </div>
+
+            <svg id="gh-canvas" viewBox="0 0 4000 1763" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+                <g id="master-transform">
+
+                    <!-- Lag 0: Baggrundsbilledet (Placeret absolut nederst) -->
+                    <g id="layer-vejen">
+                        <image href="img/vejen.svg" x="0" y="0" width="4000" height="1763" preserveAspectRatio="none"></image>
+                    </g>
+
+                    <!-- Hovedlaget for konfiguratoren -->
+                    <svg id="svg_1" x="0" y="0" width="4000" height="1763" viewBox="0 0 4000 1763">
+
+                        <!-- RÆKKEFØLGEN ER AFGØRENDE: Fra bund til top -->
+                        <!-- Lag 1: Gaden -->
+                        <g id="layer-gaden"></g>
+
+                        <!-- Lag 2: Kørevejen -->
+                        <g id="layer-koerevejen"></g>
+
+                        <!-- Lag 3: Torvet -->
+                        <g id="layer-torvet"></g>
+
+                        <!-- Lag 4: Bump -->
+                        <g id="layer-bump"></g>
+
+                        <!-- Lag 5: Plantehuller (Øverst) -->
+                        <g id="layer-plantehuller"></g>
+                    </svg>
+
+                </g>
+            </svg>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+<<<<<<< HEAD:index.htm
+<<<<<<< HEAD:index.htm
+
+
+
+
+<!--id="layer-vejen": I dette lag indsættes billedfilen img/vejen.svg direkte via HTML-koden.   
+id="layer-gaden": Filen img/gaden.svg hentes asynkront via JavaScript-funktionen fetchSVGContent og indsættes i dette lag.   
+id="layer-koerevejen": Her indsættes en valgt SVG-skabelonfil. 
+Standardfilen ved opstart er img/koerevejen_lige_linie.svg. 
+Via brugergrænsefladen kan dette dog ændres til filerne img/skabelon1.svg,
+ img/skabelon2.svg eller img/skabelon3.svg
+    -->.   
+=======
+>>>>>>> 4164131f264d358b39c47142e4c931437f76778c:index2.htm
+=======
+>>>>>>> 4164131f264d358b39c47142e4c931437f76778c:index2.htm

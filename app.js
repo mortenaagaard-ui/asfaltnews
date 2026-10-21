@@ -13,12 +13,12 @@ const State = {
     vejen: { visible: true },
     gaden: { visible: true, fill: '#eef0ef' },
     torvet: { visible: true, fill: '#ffffff' },
-    koerevejen: { 
-        template: 'koerevejen_lige_linie.svg', 
-        fill: '#ebe6e8', 
-        strokeColor: '#000000', 
-        strokeWidth: 0, 
-        strokeStyle: 'solid' 
+    koerevejen: {
+        template: 'koerevejen_lige_linie.svg',
+        fill: '#ebe6e8',
+        strokeColor: '#000000',
+        strokeWidth: 0,
+        strokeStyle: 'solid'
     },
     plantehuller: { count: 0, items: [] }, // Array af {id, x, y, rot}
     bump: [], // Array af {id, type, x, y, size, color}
@@ -30,6 +30,42 @@ const State = {
 // Referencer til DOM
 const svgCanvas = document.getElementById('gh-canvas');
 const masterTransform = document.getElementById('master-transform');
+
+// Hjælpefunktion: Udregner grafikkens sande startpunkt og forskyder laget for at nulstille origo
+function applyOriginFixAndTransform(layerElement, xPos, yPos, scale) {
+    // For at getBBox() virker, skal elementet være synligt i DOM'en.
+    const originalDisplay = layerElement.style.display;
+    layerElement.style.display = 'block';
+
+    // Beregn grafikkens faktiske afgrænsning og det indbyggede offset
+    const bbox = layerElement.getBBox();
+
+    // Modregn det negative origo for at placere grafikken præcist ved xPos og yPos
+    const adjustX = xPos - (bbox.x * scale);
+    const adjustY = yPos - (bbox.y * scale);
+
+    layerElement.setAttribute('transform', `translate(${adjustX}, ${adjustY}) scale(${scale})`);
+
+    // Nulstil elementets display-egenskab tilbage til dens oprindelige tilstand
+    layerElement.style.display = originalDisplay;
+}
+
+// Hjælpefunktion: Konverterer polygoner til <path>, da getTotalLength() er påkrævet til plantehuller
+function ensurePathElement(groupEl) {
+    const polygons = groupEl.querySelectorAll('polygon');
+    polygons.forEach(poly => {
+        const pts = poly.getAttribute('points').trim().split(/\s+|,/);
+        let d = `M ${pts[0]} ${pts[1]} `;
+        for (let i = 2; i < pts.length; i += 2) {
+            if (pts[i] && pts[i + 1]) d += `L ${pts[i]} ${pts[i + 1]} `;
+        }
+        d += 'Z';
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        path.setAttribute('class', poly.getAttribute('class') || '');
+        poly.replaceWith(path);
+    });
+}
 
 // 2. INITIALISERING & ASYNKRON SVG FETCHING
 async function init() {
@@ -54,16 +90,14 @@ async function fetchSVGContent(url) {
     }
 }
 
-// 2. Opdater fetch-funktionerne til at benytte korrektionen af origo
-// 2. Opdater fetch-funktionerne til at benytte korrektionen af origo
 async function fetchAndRenderStaticLayers() {
     // Gaden
     const gadenContent = await fetchSVGContent('gaden.svg');
     if (gadenContent) {
         const gLayer = document.getElementById('layer-gaden');
         gLayer.innerHTML = gadenContent;
-        ensurePathElement(gLayer);
-        // Nulstiller negativt origo for gaden
+        ensurePathElement(gLayer); // Gør klar til matematisk path-tracing
+        // Nulstiller negativt origo og rykker gaden til gx, gy
         applyOriginFixAndTransform(gLayer, gx, gy, gsk);
     }
 
@@ -81,7 +115,7 @@ async function fetchAndRenderStaticLayers() {
 }
 
 async function loadKoerevejTemplate() {
-    console.log("loadKoerevejTemplate", State.koerevejen.template);
+    console.log("loadKoerevejTemplate", State.koerevejen.template)
     const content = await fetchSVGContent(State.koerevejen.template);
     if (content) {
         const sLayer = document.getElementById('layer-koerevejen');
@@ -92,51 +126,10 @@ async function loadKoerevejTemplate() {
     }
 }
 
-// Hjælpefunktion: Konverterer polygoner til <path>, da getTotalLength() er påkrævet til plantehuller
-function ensurePathElement(groupEl) {
-    const polygons = groupEl.querySelectorAll('polygon');
-    polygons.forEach(poly => {
-        const pts = poly.getAttribute('points').trim().split(/\s+|,/);
-        let d = `M ${pts[0]} ${pts[1]} `;
-        for(let i=2; i<pts.length; i+=2) {
-            if(pts[i] && pts[i+1]) d += `L ${pts[i]} ${pts[i+1]} `;
-        }
-        d += 'Z';
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', d);
-        path.setAttribute('class', poly.getAttribute('class') || '');
-        poly.replaceWith(path);
-    });
-}
-
-// 1. Tilføj denne hjælpefunktion under 'ensurePathElement'
-function applyOriginFixAndTransform(layerElement, xPos, yPos, scale) {
-    // Beregn grafikkens faktiske afgrænsning og det indbyggede offset
-    const bbox = layerElement.getBBox();
-
-    // Modregn det negative origo for at placere grafikken præcist ved xPos og yPos
-    const adjustX = xPos - (bbox.x * scale);
-    const adjustY = yPos - (bbox.y * scale);
-
-    layerElement.setAttribute('transform', `translate(${adjustX}, ${adjustY}) scale(${scale})`);
-}
-
-
-// 1. Tilføj denne hjælpefunktion under 'ensurePathElement'
-function applyOriginFixAndTransform(layerElement, xPos, yPos, scale) {
-    // Beregn grafikkens faktiske afgrænsning og det indbyggede offset
-    const bbox = layerElement.getBBox();
-
-    // Modregn det negative origo for at placere grafikken præcist ved xPos og yPos
-    const adjustX = xPos - (bbox.x * scale);
-    const adjustY = yPos - (bbox.y * scale);
-
-    layerElement.setAttribute('transform', `translate(${adjustX}, ${adjustY}) scale(${scale})`);
-}
-
-
-// 3. Opdater renderAll() til at bruge 100% skalering af baggrundsbilledet
+// 3. RENDERING MOTOR (Opdaterer DOM baseret på State)
 function renderAll() {
+
+    // Opsætning af svg_1
     console.log("RenderAll() called. Current State:", JSON.stringify(State, null, 2));
 
     const svg1 = document.getElementById('svg_1');
@@ -147,7 +140,7 @@ function renderAll() {
         svg1.setAttribute('height', '1763');
     }
 
-    // Opsætning af image (fejl 1 rettet her via % i stedet for faste pixelværdier)
+    // Opsætning af image (fejl 1 rettet via % i stedet for faste pixelværdier)
     const imageLayer = document.querySelector('image[href="img/vejen.svg"]');
     if (imageLayer) {
         imageLayer.setAttribute('x', '0');
@@ -164,6 +157,7 @@ function renderAll() {
     const gLayer = document.getElementById('layer-gaden');
     gLayer.style.display = State.gaden.visible ? 'block' : 'none';
     Array.from(gLayer.children).forEach(child => {
+        // Hvid-sort palette simuleres ved at tillade css-color assignment
         child.setAttribute('fill', State.gaden.fill);
     });
 
@@ -172,6 +166,7 @@ function renderAll() {
     tLayer.style.display = State.torvet.visible ? 'block' : 'none';
     Array.from(tLayer.children).forEach(child => {
         child.setAttribute('fill', State.torvet.fill);
+        // Torvets specifikke edge-marker constraint
         child.setAttribute('stroke', '#000');
         child.setAttribute('stroke-width', '2');
     });
@@ -184,6 +179,7 @@ function renderAll() {
     renderPlantehullerVisually();
     updateZoomPan();
 }
+
 function renderKoerevejenStyles() {
     const sLayer = document.getElementById('layer-koerevejen');
     Array.from(sLayer.children).forEach(child => {
@@ -204,7 +200,7 @@ function generatePlantehuller() {
 
     // Find omkredsen på Gaden (kræver at den er indlæst som path)
     const gPath = document.querySelector('#layer-gaden path');
-    if(!gPath) return;
+    if (!gPath) return;
 
     const totalLength = gPath.getTotalLength();
     const step = totalLength / count;
@@ -212,7 +208,7 @@ function generatePlantehuller() {
     for (let i = 0; i < count; i++) {
         const pt = gPath.getPointAtLength(i * step);
         const ptNext = gPath.getPointAtLength((i * step) + 1); // Beregn tangent
-        
+
         // Find vinkel ud fra vektoren mellem pt og ptNext
         const angleRad = Math.atan2(ptNext.y - pt.y, ptNext.x - pt.x);
         const angleDeg = (angleRad * 180 / Math.PI) + 90; // +90 for at vende halvcirklen udad
@@ -234,7 +230,7 @@ function generatePlantehuller() {
 function renderPlantehullerVisually() {
     const layer = document.getElementById('layer-plantehuller');
     layer.innerHTML = '';
-    
+
     State.plantehuller.items.forEach(ph => {
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         g.setAttribute('transform', `translate(${ph.x}, ${ph.y}) rotate(${ph.rot})`);
@@ -248,7 +244,7 @@ function renderPlantehullerVisually() {
         path.setAttribute('fill', '#3e8e41');
         path.setAttribute('stroke', '#1b4d21');
         path.setAttribute('stroke-width', '2');
-        
+
         g.appendChild(path);
         layer.appendChild(g);
     });
@@ -270,8 +266,8 @@ function renderBump() {
             el.setAttribute('cy', b.y);
             el.setAttribute('r', b.size);
         } else {
-            el.setAttribute('x', b.x - (b.size/2));
-            el.setAttribute('y', b.y - (b.size/2));
+            el.setAttribute('x', b.x - (b.size / 2));
+            el.setAttribute('y', b.y - (b.size / 2));
             el.setAttribute('width', b.size);
             el.setAttribute('height', b.size);
         }
@@ -286,14 +282,14 @@ function setupEventListeners() {
     document.getElementById('toggle-vejen').addEventListener('change', e => { State.vejen.visible = e.target.checked; renderAll(); });
     document.getElementById('toggle-gaden').addEventListener('change', e => { State.gaden.visible = e.target.checked; renderAll(); });
     document.getElementById('gaden-color').addEventListener('input', e => { State.gaden.fill = e.target.value; renderAll(); });
-    
+
     document.getElementById('toggle-torvet').addEventListener('change', e => { State.torvet.visible = e.target.checked; renderAll(); });
     document.getElementById('torvet-color').addEventListener('input', e => { State.torvet.fill = e.target.value; renderAll(); });
 
     // Kørevejen
-    document.getElementById('koerevejen-template').addEventListener('change', async e => { 
-        State.koerevejen.template = e.target.value; 
-        await loadKoerevejTemplate(); 
+    document.getElementById('koerevejen-template').addEventListener('change', async e => {
+        State.koerevejen.template = e.target.value;
+        await loadKoerevejTemplate();
     });
     document.getElementById('koerevejen-fill').addEventListener('input', e => { State.koerevejen.fill = e.target.value; renderAll(); });
     document.getElementById('koerevejen-stroke-color').addEventListener('input', e => { State.koerevejen.strokeColor = e.target.value; renderAll(); });
@@ -330,22 +326,24 @@ function setupEventListeners() {
     const logoContainer = document.getElementById('gh-logo-container');
     const logoTooltip = document.getElementById('gh-logo-tooltip');
     let logoTimer;
-    
-    logoContainer.addEventListener('mouseenter', () => logoTooltip.style.display = 'block');
-    logoContainer.addEventListener('mouseleave', () => logoTooltip.style.display = 'none');
-    logoContainer.addEventListener('click', () => {
-        if (logoTooltip.style.display === 'block') {
-            logoTooltip.style.display = 'none';
-            clearTimeout(logoTimer);
-        } else {
-            logoTooltip.style.display = 'block';
-            logoTimer = setTimeout(() => logoTooltip.style.display = 'none', 20000);
-        }
-    });
+
+    if (logoContainer && logoTooltip) {
+        logoContainer.addEventListener('mouseenter', () => logoTooltip.style.display = 'block');
+        logoContainer.addEventListener('mouseleave', () => logoTooltip.style.display = 'none');
+        logoContainer.addEventListener('click', () => {
+            if (logoTooltip.style.display === 'block') {
+                logoTooltip.style.display = 'none';
+                clearTimeout(logoTimer);
+            } else {
+                logoTooltip.style.display = 'block';
+                logoTimer = setTimeout(() => logoTooltip.style.display = 'none', 20000);
+            }
+        });
+    }
 
     // Træk og Slip (Drag API) for Canvas
     setupDragLogic();
-    
+
     // Arkiv & Publicering
     document.getElementById('btn-publish').addEventListener('click', publishDesign);
     document.getElementById('btn-load-list').addEventListener('click', loadDesignList);
@@ -370,13 +368,13 @@ function setupDragLogic() {
         if (target) {
             activeElement = target;
             const mousePos = getMousePosition(evt);
-            
-            if(target.dataset.type === 'bump') {
+
+            if (target.dataset.type === 'bump') {
                 State.selectedBumpId = target.dataset.id;
                 document.getElementById('bump-editor').style.display = 'block';
                 // Opdater toolbox felter
                 const b = State.bump.find(x => x.id === State.selectedBumpId);
-                if(b) {
+                if (b) {
                     document.getElementById('bump-size').value = b.size;
                     document.getElementById('bump-color').value = b.color;
                 }
@@ -391,7 +389,12 @@ function setupDragLogic() {
         } else {
             // Afvælg bump hvis man klikker ved siden af
             State.selectedBumpId = null;
-            document.getElementById('bump-editor').style.display = 'none';
+
+            const bumpEditor = document.getElementById('bump-editor');
+            if (bumpEditor) {
+                bumpEditor.style.display = 'none';
+            }
+
             renderAll();
         }
     });
@@ -400,8 +403,8 @@ function setupDragLogic() {
         if (activeElement) {
             evt.preventDefault();
             const coord = getMousePosition(evt);
-            
-            if(activeElement.dataset.type === 'bump') {
+
+            if (activeElement.dataset.type === 'bump') {
                 const b = State.bump.find(x => x.id === activeElement.dataset.id);
                 b.x = coord.x - offset.x;
                 b.y = coord.y - offset.y;
@@ -417,11 +420,11 @@ function setupDragLogic() {
 
     svgCanvas.addEventListener('pointerup', () => activeElement = null);
     svgCanvas.addEventListener('pointerleave', () => activeElement = null);
-    
+
     // Dobbeltklik for at slette plantehul (Brugervenlig feature fra prompt)
     svgCanvas.addEventListener('dblclick', evt => {
         const target = evt.target.closest('.draggable');
-        if(target && target.dataset.type === 'plantehul') {
+        if (target && target.dataset.type === 'plantehul') {
             State.plantehuller.items = State.plantehuller.items.filter(x => x.id !== target.dataset.id);
             renderPlantehullerVisually();
         }
@@ -443,17 +446,28 @@ function addBump(type) {
     };
     State.bump.push(newBump);
     State.selectedBumpId = newBump.id;
-    
-    document.getElementById('bump-editor').style.display = 'block';
-    document.getElementById('bump-size').value = newBump.size;
-    document.getElementById('bump-color').value = newBump.color;
-    
+
+    const bumpEditor = document.getElementById('bump-editor');
+    if (bumpEditor) {
+        bumpEditor.style.display = 'block';
+    }
+
+    const bumpSize = document.getElementById('bump-size');
+    if (bumpSize) {
+        bumpSize.value = newBump.size;
+    }
+
+    const bumpColor = document.getElementById('bump-color');
+    if (bumpColor) {
+        bumpColor.value = newBump.color;
+    }
+
     renderBump();
 }
 
 function updateSelectedBump(key, value) {
     const b = State.bump.find(x => x.id === State.selectedBumpId);
-    if(b) {
+    if (b) {
         b[key] = key === 'size' ? parseInt(value) : value;
         renderBump();
     }
@@ -462,33 +476,60 @@ function updateSelectedBump(key, value) {
 function deleteSelectedBump() {
     State.bump = State.bump.filter(x => x.id !== State.selectedBumpId);
     State.selectedBumpId = null;
-    document.getElementById('bump-editor').style.display = 'none';
+
+    const bumpEditor = document.getElementById('bump-editor');
+    if (bumpEditor) {
+        bumpEditor.style.display = 'none';
+    }
+
     renderBump();
 }
 
 function applyStateToUI() {
-    document.getElementById('toggle-vejen').checked = State.vejen.visible;
-    document.getElementById('toggle-gaden').checked = State.gaden.visible;
-    document.getElementById('gaden-color').value = State.gaden.fill;
-    document.getElementById('toggle-torvet').checked = State.torvet.visible;
-    document.getElementById('torvet-color').value = State.torvet.fill;
-    
-    document.getElementById('koerevejen-template').value = State.koerevejen.template;
-    document.getElementById('koerevejen-fill').value = State.koerevejen.fill;
-    document.getElementById('koerevejen-stroke-color').value = State.koerevejen.strokeColor;
-    document.getElementById('koerevejen-stroke-width').value = State.koerevejen.strokeWidth;
-    document.getElementById('koerevejen-stroke-style').value = State.koerevejen.strokeStyle;
-    
-    document.getElementById('plantehuller-val').innerText = State.plantehuller.count;
-    document.getElementById('plantehuller-slider').value = State.plantehuller.count;
-  //  document.querySelector(`input[name="skin"][value="${State.skin}"]`).checked = true;
-  //  document.getElementById('skin-stylesheet').href = State.skin;
+    const toggleVejen = document.getElementById('toggle-vejen');
+    if (toggleVejen) toggleVejen.checked = State.vejen.visible;
+
+    const toggleGaden = document.getElementById('toggle-gaden');
+    if (toggleGaden) toggleGaden.checked = State.gaden.visible;
+
+    const gadenColor = document.getElementById('gaden-color');
+    if (gadenColor) gadenColor.value = State.gaden.fill;
+
+    const toggleTorvet = document.getElementById('toggle-torvet');
+    if (toggleTorvet) toggleTorvet.checked = State.torvet.visible;
+
+    const torvetColor = document.getElementById('torvet-color');
+    if (torvetColor) torvetColor.value = State.torvet.fill;
+
+    const koerevejenTemplate = document.getElementById('koerevejen-template');
+    if (koerevejenTemplate) koerevejenTemplate.value = State.koerevejen.template;
+
+    const koerevejenFill = document.getElementById('koerevejen-fill');
+    if (koerevejenFill) koerevejenFill.value = State.koerevejen.fill;
+
+    const koerevejenStrokeColor = document.getElementById('koerevejen-stroke-color');
+    if (koerevejenStrokeColor) koerevejenStrokeColor.value = State.koerevejen.strokeColor;
+
+    const koerevejenStrokeWidth = document.getElementById('koerevejen-stroke-width');
+    if (koerevejenStrokeWidth) koerevejenStrokeWidth.value = State.koerevejen.strokeWidth;
+
+    const koerevejenStrokeStyle = document.getElementById('koerevejen-stroke-style');
+    if (koerevejenStrokeStyle) koerevejenStrokeStyle.value = State.koerevejen.strokeStyle;
+
+    const plantehullerVal = document.getElementById('plantehuller-val');
+    if (plantehullerVal) plantehullerVal.innerText = State.plantehuller.count;
+
+    const plantehullerSlider = document.getElementById('plantehuller-slider');
+    if (plantehullerSlider) plantehullerSlider.value = State.plantehuller.count;
 }
 
 // 6. PUBLICERING & ARKIVERING VIA GITHUB/VERCEL
 async function publishDesign() {
-    const name = document.getElementById('pub-name').value;
-    const motivation = document.getElementById('pub-motivation').value;
+    const nameEl = document.getElementById('pub-name');
+    const name = nameEl ? nameEl.value : '';
+
+    const motivationEl = document.getElementById('pub-motivation');
+    const motivation = motivationEl ? motivationEl.value : '';
 
     if (!name) return alert('Du skal angive et navn for designet.');
 
@@ -503,9 +544,9 @@ async function publishDesign() {
         const response = await fetch('/api/update-github-file', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ newData: pubData }) // Direkte ukrypteret JSON[cite: 13]
+            body: JSON.stringify({ newData: pubData })
         });
-        
+
         const result = await response.json();
         if (result.success) {
             alert('Designforslag publiceret til arkivet!');
@@ -524,11 +565,11 @@ async function loadDesignList() {
         const response = await fetch('data/data.json');
         if (!response.ok) throw new Error('Datafil ikke fundet');
         const data = await response.json();
-        
+
         const ul = document.getElementById('archive-list');
-        ul.innerHTML = '';
-        
-        if(Array.isArray(data)) {
+        if (ul) ul.innerHTML = '';
+
+        if (Array.isArray(data) && ul) {
             data.forEach((design, index) => {
                 const li = document.createElement('li');
                 li.innerText = `${design.Navn} (${new Date(design.Dato).toLocaleDateString()})`;
@@ -544,7 +585,7 @@ async function loadDesignList() {
 }
 
 async function loadStateFromArchive(archivedState) {
-    if(confirm('Vil du overskrive dit nuværende lærred med dette design?')) {
+    if (confirm('Vil du overskrive dit nuværende lærred med dette design?')) {
         Object.assign(State, archivedState);
         applyStateToUI();
         await loadKoerevejTemplate(); // Hvis skabelonen er skiftet
@@ -553,4 +594,5 @@ async function loadStateFromArchive(archivedState) {
 }
 
 // Opstart
+window.addEventListener('DOMContentLoaded', init);
 window.addEventListener('DOMContentLoaded', init);
